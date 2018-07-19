@@ -1,0 +1,4 @@
+.\foo.sql
+.\man.sql
+.\foo.txt
+.\choo.sql
