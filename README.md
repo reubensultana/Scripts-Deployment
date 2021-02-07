@@ -2,22 +2,21 @@
 
 ## Synopsis
 
-Deploy SQL scripts in a sequence using PowerShell
+Executes a list of SQL script files agianst a list of SQL Server instances.
 
 ## Description
 
-Reads a text file containing a list of databases, another file containing a list of scripts, and executes all of the scripts against the list of databases.
-The output is stored as text in a LOG file in the specified folder, using the database name for the file name.
+Based on an open-source project hosted at <https://github.com/reubensultana/Scripts-Deployment>  
+Reads a text file containing a list of Servers, another file containing a list of TSQL Scripts, and executes all of the scripts against the list of remote servers.  
+The output is stored as text in a LOG file in a subfolder, using the time stamp name for the file name.
 
 ## Syntax
 
 ``` powershell
 .\Deploy-Scripts.ps1 
-    [-scriptListFile] <IO.FileInfo>]
-    [-databaseListFile] <IO.FileInfo>]    
-    [-serverInstance] <String>]
-    [-sqlAuthCredential] <PSCredential>]
-    [-logFilePath] <String>]
+    [-ServerListFile] <IO.FileInfo>]
+    [-ScriptListFile] <IO.FileInfo>]    
+    [-ConnectionTimeout] <Int32]
     [-QueryTimeout] <Int32]
     [<CommonParameters>]
 ```
@@ -26,57 +25,61 @@ The output is stored as text in a LOG file in the specified folder, using the da
 
 ### Example 1
 
-Using Windows Authentication
+Parameters inline:
 
 ``` powershell
-.\Deploy-Scripts.ps1 -scriptListFile ".\scriptslist.txt" -databaseListFile ".\databaselist.txt" -serverInstance "localhost" -logFilePath "C:\TEMP" -QueryTimeout 7200
+.\Deploy-Scripts.ps1 -ServerListFile .\ServerList.txt -ScriptListFile .\FileList.txt -ConnectionTimeout 60 -QueryTimeout 60
 ```
 
 ### Example 2
 
-Using SQL Authentication and code
-First create a PSCredential object to avoid entering the Username and Password in clear text
+This will use defaults for ConnectionTimeout and QueryTimeout:
 
 ``` powershell
-[string] $username="testuser"
-[System.Security.SecureString] $pass = ConvertTo-SecureString "testuserpassword" -AsPlainText -Force
-$sqlAuthCredential = New-Object System.Management.Automation.PSCredential ($username, $pass)
-```
-
-Another approach would be to launch a prompt window
-
-``` powershell
-$sqlAuthCredential = Get-Credential -Message "Enter credentials used for SQL Authentication"
-.\Deploy-Scripts.ps1 -scriptListFile ".\scriptslist.txt" -databaseListFile ".\databaselist.txt" -serverInstance "localhost" -sqlAuthCredential $sqlAuthCredential -logFilePath "C:\TEMP" -QueryTimeout 7200
+.\Deploy-Scripts.ps1 -ServerListFile .\ServerList.txt -ScriptListFile .\FileList.txt
 ```
 
 ### Example 3
 
-Using SQL Authentication with prompt window
+Parameter values in variables:
 
 ``` powershell
-$sqlAuthCredential = Get-Credential -Message "Enter credentials used for SQL Authentication"
-.\Deploy-Scripts.ps1 -scriptListFile ".\scriptslist.txt" -databaseListFile ".\databaselist.txt" -serverInstance "localhost" -sqlAuthCredential $sqlAuthCredential -logFilePath "C:\TEMP" -QueryTimeout 7200
+[string] $ServerListFile = ".\ServerList.txt"
+[string] $ScriptListFile = ".\FileList.txt"
+.\Deploy-Scripts.ps1 -ServerListFile .\ServerList.txt -ScriptListFile .\FileList.txt -ConnectionTimeout 60 -QueryTimeout 60
+```
+
+### Example 4
+
+This is my favourite example. Passing parameter values using Splatting:
+
+``` powershell
+$Params = @{
+    ServerListFile      = ".\ServerList.txt"
+    ScriptListFile      = ".\FileList.txt"
+    ConnectionTimeout   = 60
+    QueryTimeout        = 60
+    Verbose             = $true
+}
+.\Deploy-Scripts.ps1 @Params 
 ```
 
 ## Required Parameters
 
-**-scriptListFile**  
-The path to the list of scripts that will be executed against the list of databases. This parameter is mandatory.
+**-ServerListFile**  
+A text file containing the list of servers where the scripts will be executed/deployed.  
+NOTE: the files must exist (DOH!) and have to have a SQL extension.
 
-**-databaseListFile**  
-The path to the list of databases that will be affected by the list of scripts. This parameter is mandatory.
-
-**-serverInstance**  
-The name of the SQL Server hosting the databases. This parameter is mandatory and defaults to "localhost".
-
-**-logFilePath**  
-The full path to the folder where the log/s will be written. Does not need to exist. This parameter is required.
+**-ScriptListFile**  
+A text file containing the paths to the list of files that will be executed/deployed.  
+NOTE: each script must contain the name of the affected database, otherwise execution will default to "master".
 
 ## Optional Parameters
 
-**-sqlAuthCredential**  
-The PSCredential object holding the credentials used for SQL Authentication ONLY. This is an optional parameter.
+Both are mapped to the respective parameters from the [Invoke-Sqlcmd cmdlet](https://docs.microsoft.com/en-us/powershell/module/sqlserver/invoke-sqlcmd) - so I'm reproducing the orignal documentation description.
 
-**-queryTimeout**  
-Specifies the number of seconds before the queries time out. If not specified it will default to 3600 (1 hour). The timeout must be an integer value between 1 and 65535.
+**-ConnectionTimeout**  
+Specifies the number of seconds when this cmdlet times out if it cannot successfully connect to an instance of the Database Engine. The timeout value must be an integer value between 0 and 65534. If 0 is specified, connection attempts do not time out.
+
+**-QueryTimeout**  
+Specifies the number of seconds before the queries time out. If a timeout value is not specified, the queries do not time out. The timeout must be an integer value between 1 and 65535.
